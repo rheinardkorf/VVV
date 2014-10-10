@@ -5,7 +5,8 @@
 * Changed sendfile flag to on (config/nginx-config/nginx.conf)
 * Turning gzip on (config/nginx-config/nginx-wp-common.conf)  
 * TODO: Tighten up some passwords or at least document the best way to tighten them up.
-* TODO: Instructions for setting up AWS provider.
+* TODO: Instructions for setting up AWS provider. 
+* TODO: Remove pre-configured sites.
 
 
 # Varying Vagrant Vagrants Changelog
