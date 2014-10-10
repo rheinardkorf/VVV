@@ -1,3 +1,13 @@
+# Varying Vagrant Vagrants FORK Changelog
+
+## 1.2
+* Added AWS provider settings to Vagrantfile. You will need to change these to use it.  
+* Changed sendfile flag to on (config/nginx-config/nginx.conf)
+* Turning gzip on (config/nginx-config/nginx-wp-common.conf)  
+* TODO: Tighten up some passwords or at least document the best way to tighten them up.
+* TODO: Instructions for setting up AWS provider.
+
+
 # Varying Vagrant Vagrants Changelog
 
 ## 1.2-working

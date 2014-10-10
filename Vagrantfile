@@ -11,10 +11,32 @@ Vagrant.configure("2") do |config|
   vagrant_version = Vagrant::VERSION.sub(/^v/, '')
 
   # Configurations from 1.0.x can be placed in Vagrant 1.1.x specs like the following.
-  config.vm.provider :virtualbox do |v|
-    v.customize ["modifyvm", :id, "--memory", 1024]
-    v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-    v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+  config.vm.box = "dummy"
+
+  config.vm.provider :aws do |aws, override|
+    aws.access_key_id = "YOUR_ACCESSKEY_ID"
+    aws.secret_access_key = "YOUR_SECRET_ACCESS_KET"
+    aws.keypair_name = "YOUR_KEYPAIR_NAME"
+
+    # Amazon Machine Instance: ami-1711732d
+    # Ubuntu 14.01 Trusty (64bit)
+    # Check your zone's availability, but this one seems to be available in all zones.
+    aws.ami = "ami-1711732d"
+    
+    # Region. E.g. "ap-southeast-2" which is in Sydney
+    aws.region = "AWS_REGION"
+    # Instance type. Use "t2.micro" for AWS Free Tier
+    aws.instance_type = "AWS_INSTANCE_TYPE"
+    # Assign an Elastic IP. This can be the actual IP if you have one, or true to create one.
+    aws.elastic_ip = true
+    # An array of your security groups. This may only be one.
+    aws.security_groups = [ "GROUP_1", "GROUP_2" ]
+    # The name of your AWS instance if you have one and named it.
+    # aws.iam_instance_profile_name = "AWS_INSTANCE_NAME"
+    
+    override.ssh.username = "ubuntu"
+    # Path to your key downloaded from AWS
+    override.ssh.private_key_path = "/path/to/your/key/the_key.pem"
   end
 
   # Forward Agent
@@ -22,13 +44,6 @@ Vagrant.configure("2") do |config|
   # Enable agent forwarding on vagrant ssh commands. This allows you to use identities
   # established on the host machine inside the guest. See the manual for ssh-add
   config.ssh.forward_agent = true
-
-  # Default Ubuntu Box
-  #
-  # This box is provided by Ubuntu vagrantcloud.com and is a nicely sized (332MB)
-  # box containing the Ubuntu 14.04 Trusty 64 bit release. Once this box is downloaded
-  # to your host computer, it is cached for future use under the specified box name.
-  config.vm.box = "ubuntu/trusty64"
 
   config.vm.hostname = "vvv"
 
@@ -44,32 +59,38 @@ Vagrant.configure("2") do |config|
   #
   # Other domains can be automatically added by including a vvv-hosts file containing
   # individual domains separated by whitespace in subdirectories of www/.
-  if defined? VagrantPlugins::HostsUpdater
-
-    # Capture the paths to all vvv-hosts files under the www/ directory.
-    paths = []
-    Dir.glob(vagrant_dir + '/www/**/vvv-hosts').each do |path|
-      paths << path
-    end
-
-    # Parse through the vvv-hosts files in each of the found paths and put the hosts
-    # that are found into a single array.
-    hosts = []
-    paths.each do |path|
-      new_hosts = []
-      file_hosts = IO.read(path).split( "\n" )
-      file_hosts.each do |line|
-        if line[0..0] != "#"
-          new_hosts << line
-        end
-      end
-      hosts.concat new_hosts
-    end
-
-    # Pass the final hosts array to the hostsupdate plugin so it can perform magic.
-    config.hostsupdater.aliases = hosts
-
-  end
+  #
+  # NOTE: You may not want to do this on a production machine as DNS should resolve correctly.
+  #       Relying on HostsUpdater is not a good idea for a live environment.
+  #       Uncomment this if you really want it.
+  # --- UNCOMMENT BELOW THIS LINE ---
+  # if defined? VagrantPlugins::HostsUpdater
+  #
+  #   # Capture the paths to all vvv-hosts files under the www/ directory.
+  #   paths = []
+  #   Dir.glob(vagrant_dir + '/www/**/vvv-hosts').each do |path|
+  #     paths << path
+  #   end
+  #
+  #   # Parse through the vvv-hosts files in each of the found paths and put the hosts
+  #   # that are found into a single array.
+  #   hosts = []
+  #   paths.each do |path|
+  #     new_hosts = []
+  #     file_hosts = IO.read(path).split( "\n" )
+  #     file_hosts.each do |line|
+  #       if line[0..0] != "#"
+  #         new_hosts << line
+  #       end
+  #     end
+  #     hosts.concat new_hosts
+  #   end
+  #
+  #   # Pass the final hosts array to the hostsupdate plugin so it can perform magic.
+  #   config.hostsupdater.aliases = hosts
+  #
+  # end
+  # --- STOP UNCOMMENTING ABOVE THIS LINE ---
 
   # Default Box IP Address
   #
@@ -80,9 +101,14 @@ Vagrant.configure("2") do |config|
   # If you are already on a network using the 192.168.50.x subnet, this should be changed.
   # If you are running more than one VM through VirtualBox, different subnets should be used
   # for those as well. This includes other Vagrant boxes.
-  config.vm.network :private_network, ip: "192.168.50.4"
+  #
+  # NOTE: The AWS provider does not support this config
+  #
+  # config.vm.network :private_network, ip: "192.168.50.4"
 
   # Drive mapping
+  #
+  # AWS uses 'rsync' to make this happen. Don't expect that your files will instantly update.
   #
   # The following config.vm.synced_folder settings will map directories in your Vagrant
   # virtual machine to directories on your local machine. Once these are mapped, any
@@ -196,15 +222,18 @@ Vagrant.configure("2") do |config|
   # into the VM and execute things. By default, each of these scripts calls db_backup
   # to create backups of all current databases. This can be overridden with custom
   # scripting. See the individual files in config/homebin/ for details.
-  if defined? VagrantPlugins::Triggers
-    config.trigger.before :halt, :stdout => true do
-      run "vagrant ssh -c 'vagrant_halt'"
-    end
-    config.trigger.before :suspend, :stdout => true do
-      run "vagrant ssh -c 'vagrant_suspend'"
-    end
-    config.trigger.before :destroy, :stdout => true do
-      run "vagrant ssh -c 'vagrant_destroy'"
-    end
-  end
+  #
+  # NOTE: As awsome as triggers are, the AWS provider is not as AWSome in supporting halts, suspends and resumes.
+  #
+  # if defined? VagrantPlugins::Triggers
+  #   config.trigger.before :halt, :stdout => true do
+  #     run "vagrant ssh -c 'vagrant_halt'"
+  #   end
+  #   config.trigger.before :suspend, :stdout => true do
+  #     run "vagrant ssh -c 'vagrant_suspend'"
+  #   end
+  #   config.trigger.before :destroy, :stdout => true do
+  #     run "vagrant ssh -c 'vagrant_destroy'"
+  #   end
+  # end
 end
